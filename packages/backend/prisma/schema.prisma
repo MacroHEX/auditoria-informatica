@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+// Modelo principal para los tickets
+model Ticket {
+  id        String   @id @default(cuid())
+  numero    String   @unique // Formato: V01, V02, C01, etc.
+  tipo      TipoTicket
+  estado    EstadoTicket @default(EnEspera)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  llamadoAt DateTime? // Cuando fue llamado por el cajero
+  
+  // Relación con LlamadoTicket
+  llamado   LlamadoTicket?
+
+  @@map("tickets")
+}
+
+// Modelo para el registro de llamados
+model LlamadoTicket {
+  id          String   @id @default(cuid())
+  ticketId    String   @unique
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  cajeroId    String   // Identificador del cajero que llamó
+  llamadoAt   DateTime @default(now())
+  completado  Boolean  @default(false)
+
+  @@map("llamado_tickets")
+}
+
+// Tipos de tickets disponibles
+enum TipoTicket {
+  VENTANILLA  // V01, V02, etc.
+  CAJA        // C01, C02, etc.
+  ASESORIA    // A01, A02, etc.
+}
+
+// Estados posibles de un ticket
+enum EstadoTicket {
+  EnEspera
+  Llamado
+  Atendido
+  Cancelado
+}

@@ -1,0 +1,37 @@
+{
+  "name": "sistema-agendamiento-tickets",
+  "version": "1.0.0",
+  "description": "Sistema de agendamiento de tickets para banco - Monorepo",
+  "private": true,
+  "packageManager": "pnpm@8.15.0",
+  "workspaces": [
+    "packages/backend",
+    "packages/frontend"
+  ],
+  "scripts": {
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev": "pnpm --parallel dev",
+    "build:backend": "pnpm --filter backend build",
+    "build:frontend": "pnpm --filter frontend build",
+    "build": "pnpm --parallel build",
+    "db:generate": "pnpm --filter backend db:generate",
+    "db:migrate": "pnpm --filter backend db:migrate",
+    "db:studio": "pnpm --filter backend db:studio",
+    "db:seed": "pnpm --filter backend db:seed",
+    "install:all": "pnpm install -r",
+    "clean": "pnpm -r exec rm -rf node_modules && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "tickets",
+    "banco",
+    "socket.io",
+    "react",
+    "auditoria"
+  ],
+  "author": "Martin Medina",
+  "license": "MIT"
+}
