@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Tickets - Banco | Auditoría Informática</title>
+    <meta name="description" content="Sistema de agendamiento de tickets para banco - Proyecto de auditoría informática">
+    
+    <!-- PUNTO DE AUDITORIA (Identify): -->
+    <!-- Metadatos para documentación y seguimiento -->
+    <meta name="auditoria-framework" content="NIST CSF 2.0">
+    <meta name="auditoria-objetivo" content="Demostrar principios de seguridad y vulnerabilidades intencionales">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PUNTO DE AUDITORIA (Detect): -->
+    <!-- Script de monitoreo básico -->
+    <script>
+      window.addEventListener('error', (event) => {
+        console.error('Error global capturado:', event.error);
+      });
+    </script>
+  </body>
+</html>
