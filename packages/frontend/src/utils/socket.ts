@@ -1,24 +1,18 @@
-import { io, Socket } from 'socket.io-client';
-import type { SocketEvents } from '../types/ticket';
+import {io, Socket} from 'socket.io-client';
+import type {SocketEvents} from '../types/ticket';
 
-// PUNTO DE AUDITORIA (Protect):
-// Configuración centralizada del socket
-// Nota: En producción, la URL debería venir de variables de entorno
-
-const SOCKET_URL = 'http://10.10.10.33:3000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
 class SocketService {
-  private socket: Socket | null = null;
+  private socket: Socket<SocketEvents, SocketEvents> | null = null;
 
-  connect(): Socket<SocketEvents> {
+  connect(): Socket<SocketEvents, SocketEvents> {
     if (!this.socket) {
       this.socket = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
         timeout: 10000,
       });
 
-      // PUNTO DE AUDITORIA (Detect):
-      // Manejadores de eventos de conexión para monitoreo
       this.socket.on('connect', () => {
         console.log('Socket conectado:', this.socket?.id);
       });
@@ -32,7 +26,7 @@ class SocketService {
       });
     }
 
-    return this.socket as Socket<SocketEvents>;
+    return this.socket;
   }
 
   disconnect(): void {
@@ -42,7 +36,7 @@ class SocketService {
     }
   }
 
-  getSocket(): Socket<SocketEvents> | null {
+  getSocket(): Socket<SocketEvents, SocketEvents> | null {
     return this.socket;
   }
 }

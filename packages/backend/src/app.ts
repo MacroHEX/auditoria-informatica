@@ -1,15 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import { errorHandler } from './middleware/errorHandler';
-import { setupSocketHandlers } from './sockets/socketHandlers';
+import {createServer} from 'http';
+import {Server as SocketIOServer} from 'socket.io';
+import {errorHandler} from './middleware/errorHandler';
+import {setupSocketHandlers} from './sockets/socketHandlers';
 import ticketRoutes from './controllers/ticketController';
 
-// 📝 PUNTO DE AUDITORÍA (Identify): 
 // Configuración centralizada de la aplicación Express
-// Esto facilita la identificación de componentes y dependencias
-
 class App {
   public app: express.Application;
   public server: ReturnType<typeof createServer>;
@@ -34,16 +31,16 @@ class App {
   private initializeMiddlewares(): void {
     // Middleware para parsing JSON
     this.app.use(express.json());
-    
+
     // Configuración de CORS
     this.app.use(cors({
       origin: process.env.CORS_ORIGIN || "http://localhost:5173",
       credentials: true
     }));
 
-    // Middleware de logging para auditoría
+    // Middleware de logging
     this.app.use((req, res, next) => {
-      console.log(`📨 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
       next();
     });
   }
@@ -54,25 +51,22 @@ class App {
 
     // Ruta de health check
     this.app.get('/health', (req, res) => {
-      res.status(200).json({ 
-        status: 'OK', 
+      res.status(200).json({
+        status: 'OK',
         timestamp: new Date().toISOString(),
         service: 'Ticket System API'
       });
     });
 
-    // 📝 PUNTO DE AUDITORÍA (Protect): 
-    // Ruta no protegida intencionalmente para demostración de vulnerabilidad
+    // Endpoint de debug (vulnerabilidad intencional para demostración)
     this.app.get('/api/debug/tickets', async (req, res) => {
-      // VULNERABILIDAD INTENCIONAL: Endpoint sin autenticación
-      // que expone todos los tickets
       try {
-        const { PrismaClient } = require('@prisma/client');
+        const {PrismaClient} = require('@prisma/client');
         const prisma = new PrismaClient();
         const tickets = await prisma.ticket.findMany();
         res.json(tickets);
       } catch (error) {
-        res.status(500).json({ error: 'Error al obtener tickets' });
+        res.status(500).json({error: 'Error al obtener tickets'});
       }
     });
   }

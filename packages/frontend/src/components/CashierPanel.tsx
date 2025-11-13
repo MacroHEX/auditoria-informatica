@@ -1,38 +1,45 @@
-import { useState, useEffect } from 'react';
+import {useEffect, useState} from 'react';
 import {
-  Card,
-  Title,
-  Text,
-  Button,
-  Stack,
-  Group,
-  Paper,
-  Table,
   Alert,
+  Badge,
+  Button,
+  Card,
+  Group,
   LoadingOverlay,
-  TextInput
+  Paper,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Title
 } from '@mantine/core';
-import { IconPhone, IconCheck, IconInfoCircle } from '@tabler/icons-react';
-import { useSocket } from '../hooks/useSocket';
-import { type Ticket, type CalledTicket, TicketStatus } from '../types/ticket';
-
-// PUNTO DE AUDITORIA (Protect):
-// Panel de cajero sin autenticación - vulnerabilidad intencional
-// Cualquier usuario puede actuar como cajero
+import {useNavigate} from 'react-router-dom';
+import {IconArrowLeft, IconCheck, IconInfoCircle, IconPhone} from '@tabler/icons-react';
+import {useSocket} from '../hooks/useSocket';
+import {
+  EstadoTicket,
+  type EstadoTicket as EstadoTicketType,
+  type LlamadoTicket,
+  type Ticket,
+  TipoIdentificacion,
+  type TipoIdentificacion as TipoIdentificacionType,
+  TipoTicket,
+  type TipoTicket as TipoTicketType
+} from '../types/ticket';
 
 export function CashierPanel() {
-  const { socket, isConnected } = useSocket();
+  const {socket, isConnected} = useSocket();
+  const navigate = useNavigate();
   const [cajeroId, setCajeroId] = useState('cajero-01');
-  const [currentTicket, setCurrentTicket] = useState<CalledTicket | null>(null);
-  const [recentCalled, setRecentCalled] = useState<CalledTicket[]>([]);
+  const [currentTicket, setCurrentTicket] = useState<LlamadoTicket | null>(null);
+  const [recentCalled, setRecentCalled] = useState<LlamadoTicket[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Escuchar eventos del socket
   useEffect(() => {
     if (!socket) return;
 
-    const handleTicketCalled = (data: { ticket: Ticket; llamado: CalledTicket; cajeroId: string }) => {
+    const handleTicketCalled = (data: { ticket: Ticket; llamado: LlamadoTicket; cajeroId: string }) => {
       if (data.cajeroId === cajeroId) {
         setCurrentTicket(data.llamado);
       }
@@ -56,13 +63,11 @@ export function CashierPanel() {
       setLoading(false);
     };
 
-    // Configurar listeners
     socket.on('ticket_llamado', handleTicketCalled);
     socket.on('ticket_completado', handleTicketCompleted);
     socket.on('no_hay_tickets', handleNoTickets);
     socket.on('error', handleError);
 
-    // Obtener estado inicial
     socket.emit('obtener_estado_inicial');
 
     return () => {
@@ -81,10 +86,7 @@ export function CashierPanel() {
 
     setLoading(true);
     setError(null);
-    
-    // PUNTO DE AUDITORIA (Respond):
-    // Llamar siguiente ticket sin validar permisos
-    socket.emit('llamar_siguiente_ticket', { cajeroId });
+    socket.emit('llamar_siguiente_ticket', {cajeroId});
   };
 
   const handleCompleteCurrent = () => {
@@ -93,27 +95,53 @@ export function CashierPanel() {
     }
 
     setLoading(true);
-    
-    // PUNTO DE AUDITORIA (Respond):
-    // Completar ticket - en producción debería validar identidad del cajero
     socket.emit('completar_ticket', {
       ticketId: currentTicket.ticketId,
       cajeroId: currentTicket.cajeroId
     });
   };
 
-  const getStatusColor = (status: TicketStatus) => {
+  const getStatusColor = (status: EstadoTicketType) => {
     const colors = {
-      [TicketStatus.EnEspera]: 'blue',
-      [TicketStatus.Llamado]: 'orange',
-      [TicketStatus.Atendido]: 'green',
-      [TicketStatus.Cancelado]: 'red',
+      [EstadoTicket.EnEspera]: 'blue',
+      [EstadoTicket.Llamado]: 'orange',
+      [EstadoTicket.Atendido]: 'green',
+      [EstadoTicket.Cancelado]: 'red',
     };
     return colors[status];
   };
 
+  const getTicketTypeColor = (tipo: TipoTicketType) => {
+    const colors = {
+      [TipoTicket.VENTANILLA]: 'blue',
+      [TipoTicket.CAJA]: 'green',
+      [TipoTicket.ASESORIA]: 'orange',
+    };
+    return colors[tipo];
+  };
+
+  const getTipoIdentificacionText = (tipo: TipoIdentificacionType) => {
+    const texts = {
+      [TipoIdentificacion.CI]: 'CI',
+      [TipoIdentificacion.PASAPORTE]: 'Pasaporte',
+      [TipoIdentificacion.CEDULA_EXTRANJERA]: 'Céd. Ext.',
+      [TipoIdentificacion.TELEFONO]: 'Teléfono',
+    };
+    return texts[tipo];
+  };
+
   return (
-    <Stack gap="md">
+    <Stack gap="md" p="md">
+      <Group>
+        <Button
+          variant="subtle"
+          leftSection={<IconArrowLeft size={16}/>}
+          onClick={() => navigate('/')}
+        >
+          Volver al inicio
+        </Button>
+      </Group>
+
       <div>
         <Title order={2}>Panel de Cajero</Title>
         <Text c="dimmed">
@@ -122,40 +150,38 @@ export function CashierPanel() {
       </div>
 
       {!isConnected && (
-        <Alert color="red" title="Sin conexión" icon={<IconInfoCircle />}>
+        <Alert color="red" title="Sin conexión" icon={<IconInfoCircle/>}>
           No hay conexión con el servidor. Verifique que el backend esté ejecutándose.
         </Alert>
       )}
 
       {error && (
-        <Alert color="red" title="Error" icon={<IconInfoCircle />}>
+        <Alert color="red" title="Error" icon={<IconInfoCircle/>}>
           {error}
         </Alert>
       )}
 
-      <LoadingOverlay visible={loading} />
+      <LoadingOverlay visible={loading}/>
 
-      {/* Identificación del cajero */}
       <Card withBorder>
         <Group justify="space-between">
           <div>
             <Text fw={500}>Identificación de Cajero</Text>
             <Text size="sm" c="dimmed">
-              PUNTO DE AUDITORIA: Sin autenticación
+              Ingrese su identificador de cajero
             </Text>
           </div>
           <TextInput
             value={cajeroId}
             onChange={(e) => setCajeroId(e.target.value)}
             placeholder="ID del cajero"
-            style={{ width: 200 }}
+            style={{width: 200}}
           />
         </Group>
       </Card>
 
-      {/* Ticket actual */}
       <Group gap="md" align="stretch">
-        <Card withBorder style={{ flex: 1 }}>
+        <Card withBorder style={{flex: 1}}>
           <Stack gap="md">
             <div>
               <Text fw={500} size="lg">Llamar Siguiente Ticket</Text>
@@ -166,7 +192,7 @@ export function CashierPanel() {
 
             <Button
               color="blue"
-              leftSection={<IconPhone size={16} />}
+              leftSection={<IconPhone size={16}/>}
               onClick={handleCallNext}
               disabled={!isConnected || loading}
               size="lg"
@@ -178,32 +204,51 @@ export function CashierPanel() {
         </Card>
 
         {currentTicket && (
-          <Card withBorder style={{ flex: 1 }}>
+          <Card withBorder style={{flex: 2}}>
             <Stack gap="md">
               <div>
-                <Text fw={500} size="lg">Ticket Actual</Text>
+                <Text fw={500} size="lg">Ticket Actual en Atención</Text>
                 <Text size="sm" c="dimmed">
-                  En atención
+                  Cliente siendo atendido
                 </Text>
               </div>
 
               <Paper p="md" withBorder>
-                <Group justify="center">
-                  <Text size="xl" fw={700}>
-                    {currentTicket.ticket.numero}
-                  </Text>
-                </Group>
-                <Text size="sm" c="dimmed" ta="center">
-                  {currentTicket.ticket.tipo}
-                </Text>
+                <Stack gap="sm">
+                  <Group justify="center">
+                    <Text size="xl" fw={700}>
+                      {currentTicket.ticket.numero}
+                    </Text>
+                    <Badge color={getTicketTypeColor(currentTicket.ticket.tipo)} size="lg">
+                      {currentTicket.ticket.tipo}
+                    </Badge>
+                  </Group>
+
+                  <Group justify="apart" mt="md">
+                    <Stack gap="xs">
+                      <Text fw={500}>Información del Cliente</Text>
+                      <Text size="sm"><strong>Nombre:</strong> {currentTicket.ticket.clienteNombre}</Text>
+                      <Text size="sm">
+                        <strong>Identificación:</strong> {getTipoIdentificacionText(currentTicket.ticket.tipoIdentificacion)}
+                      </Text>
+                      {currentTicket.ticket.clienteDocumento && (
+                        <Text size="sm"><strong>Documento:</strong> {currentTicket.ticket.clienteDocumento}</Text>
+                      )}
+                      {currentTicket.ticket.clienteTelefono && (
+                        <Text size="sm"><strong>Teléfono:</strong> {currentTicket.ticket.clienteTelefono}</Text>
+                      )}
+                    </Stack>
+                  </Group>
+                </Stack>
               </Paper>
 
               <Button
                 color="green"
-                leftSection={<IconCheck size={16} />}
+                leftSection={<IconCheck size={16}/>}
                 onClick={handleCompleteCurrent}
                 disabled={!isConnected || loading}
                 fullWidth
+                size="lg"
               >
                 Marcar como Completado
               </Button>
@@ -212,10 +257,9 @@ export function CashierPanel() {
         )}
       </Group>
 
-      {/* Tickets llamados recientemente */}
       <Card withBorder>
         <Title order={3} mb="md">Tickets Llamados Recientemente</Title>
-        
+
         {recentCalled.length === 0 ? (
           <Text c="dimmed" ta="center" py="xl">
             No hay tickets llamados recientemente
@@ -226,6 +270,8 @@ export function CashierPanel() {
               <Table.Tr>
                 <Table.Th>Ticket</Table.Th>
                 <Table.Th>Tipo</Table.Th>
+                <Table.Th>Cliente</Table.Th>
+                <Table.Th>Identificación</Table.Th>
                 <Table.Th>Cajero</Table.Th>
                 <Table.Th>Hora Llamado</Table.Th>
                 <Table.Th>Estado</Table.Th>
@@ -237,15 +283,29 @@ export function CashierPanel() {
                   <Table.Td>
                     <Text fw={500}>{llamado.ticket.numero}</Text>
                   </Table.Td>
-                  <Table.Td>{llamado.ticket.tipo}</Table.Td>
+                  <Table.Td>
+                    <Badge color={getTicketTypeColor(llamado.ticket.tipo)}>
+                      {llamado.ticket.tipo}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>{llamado.ticket.clienteNombre}</Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{getTipoIdentificacionText(llamado.ticket.tipoIdentificacion)}</Text>
+                    {llamado.ticket.clienteDocumento && (
+                      <Text size="xs" c="dimmed">{llamado.ticket.clienteDocumento}</Text>
+                    )}
+                    {llamado.ticket.clienteTelefono && (
+                      <Text size="xs" c="dimmed">{llamado.ticket.clienteTelefono}</Text>
+                    )}
+                  </Table.Td>
                   <Table.Td>{llamado.cajeroId}</Table.Td>
                   <Table.Td>
                     {new Date(llamado.llamadoAt).toLocaleTimeString()}
                   </Table.Td>
                   <Table.Td>
-                    <Text c={getStatusColor(llamado.ticket.estado)}>
+                    <Badge color={getStatusColor(llamado.ticket.estado)}>
                       {llamado.ticket.estado}
-                    </Text>
+                    </Badge>
                   </Table.Td>
                 </Table.Tr>
               ))}

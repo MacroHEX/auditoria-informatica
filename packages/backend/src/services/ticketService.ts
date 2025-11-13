@@ -1,9 +1,15 @@
-import { PrismaClient, TipoTicket, EstadoTicket, Ticket, LlamadoTicket } from '@prisma/client';
+import {EstadoTicket, LlamadoTicket, PrismaClient, Ticket, TipoIdentificacion, TipoTicket} from '@prisma/client';
 
-// 📝 PUNTO DE AUDITORÍA (Identify): 
+// Interfaz para la creación de tickets con información del cliente
+export interface CrearTicketData {
+  tipo: TipoTicket;
+  clienteNombre: string;
+  tipoIdentificacion: TipoIdentificacion;
+  clienteDocumento?: string;
+  clienteTelefono?: string;
+}
+
 // Servicio bien estructurado que sigue principios SOLID
-// Fácil de auditar y mantener
-
 export class TicketService {
   private prisma: PrismaClient;
 
@@ -12,34 +18,53 @@ export class TicketService {
   }
 
   /**
-   * Genera un nuevo ticket basado en el tipo especificado
+   * Genera un nuevo ticket con información del cliente
    */
-  async generarNuevoTicket(tipo: TipoTicket): Promise<Ticket> {
+  async generarNuevoTicket(data: CrearTicketData): Promise<Ticket> {
     try {
+      // Validar que al menos uno de los dos (documento o teléfono) esté presente
+      if (!data.clienteDocumento && !data.clienteTelefono) {
+        throw new Error('Se requiere al menos documento o teléfono del cliente');
+      }
+
+      // Validar que si el tipo es documento, tenga documento
+      if (data.tipoIdentificacion !== TipoIdentificacion.TELEFONO && !data.clienteDocumento) {
+        throw new Error('Se requiere documento para el tipo de identificación seleccionado');
+      }
+
+      // Validar que si el tipo es teléfono, tenga teléfono
+      if (data.tipoIdentificacion === TipoIdentificacion.TELEFONO && !data.clienteTelefono) {
+        throw new Error('Se requiere teléfono para el tipo de identificación seleccionado');
+      }
+
       // Obtener el último número de ticket del mismo tipo
       const ultimoTicket = await this.prisma.ticket.findFirst({
-        where: { tipo },
-        orderBy: { createdAt: 'desc' },
+        where: {tipo: data.tipo},
+        orderBy: {createdAt: 'desc'},
       });
 
       // Generar nuevo número de ticket
-      const nuevoNumero = this.generarNumeroTicket(tipo, ultimoTicket?.numero);
+      const nuevoNumero = this.generarNumeroTicket(data.tipo, ultimoTicket?.numero);
 
       // Crear el nuevo ticket en la base de datos
       const ticket = await this.prisma.ticket.create({
         data: {
           numero: nuevoNumero,
-          tipo: tipo,
+          tipo: data.tipo,
           estado: EstadoTicket.EnEspera,
+          clienteNombre: data.clienteNombre,
+          tipoIdentificacion: data.tipoIdentificacion,
+          clienteDocumento: data.clienteDocumento,
+          clienteTelefono: data.clienteTelefono,
         },
       });
 
-      console.log(`🎫 Nuevo ticket generado: ${nuevoNumero}`);
+      console.log(`Nuevo ticket generado: ${nuevoNumero} para cliente ${data.clienteNombre}`);
       return ticket;
 
     } catch (error) {
-      console.error('❌ Error en generarNuevoTicket:', error);
-      throw new Error('No se pudo generar el ticket');
+      console.error('Error en generarNuevoTicket:', error);
+      throw error;
     }
   }
 
@@ -67,15 +92,13 @@ export class TicketService {
   /**
    * Llama al siguiente ticket en espera
    */
-  async llamarSiguienteTicket(cajeroId: string): Promise<{ticket: Ticket, llamado: LlamadoTicket} | null> {
-    // 📝 PUNTO DE AUDITORÍA (Respond): 
-    // Transacción de base de datos con manejo de errores
+  async llamarSiguienteTicket(cajeroId: string): Promise<{ ticket: Ticket, llamado: LlamadoTicket } | null> {
     try {
       return await this.prisma.$transaction(async (tx) => {
         // Buscar el siguiente ticket en espera (más antiguo primero)
         const siguienteTicket = await tx.ticket.findFirst({
-          where: { estado: EstadoTicket.EnEspera },
-          orderBy: { createdAt: 'asc' },
+          where: {estado: EstadoTicket.EnEspera},
+          orderBy: {createdAt: 'asc'},
         });
 
         if (!siguienteTicket) {
@@ -84,8 +107,8 @@ export class TicketService {
 
         // Actualizar estado del ticket a "Llamado"
         const ticketActualizado = await tx.ticket.update({
-          where: { id: siguienteTicket.id },
-          data: { 
+          where: {id: siguienteTicket.id},
+          data: {
             estado: EstadoTicket.Llamado,
             llamadoAt: new Date()
           },
@@ -98,10 +121,10 @@ export class TicketService {
             cajeroId: cajeroId,
             llamadoAt: new Date(),
           },
-          include: { ticket: true }
+          include: {ticket: true}
         });
 
-        console.log(`📢 Ticket ${ticketActualizado.numero} llamado por cajero ${cajeroId}`);
+        console.log(`Ticket ${ticketActualizado.numero} llamado por cajero ${cajeroId}`);
 
         return {
           ticket: ticketActualizado,
@@ -110,7 +133,7 @@ export class TicketService {
       });
 
     } catch (error) {
-      console.error('❌ Error en llamarSiguienteTicket:', error);
+      console.error('Error en llamarSiguienteTicket:', error);
       throw new Error('No se pudo llamar el siguiente ticket');
     }
   }
@@ -122,12 +145,12 @@ export class TicketService {
     try {
       // Verificar que el ticket existe y fue llamado por el mismo cajero
       const llamado = await this.prisma.llamadoTicket.findFirst({
-        where: { 
+        where: {
           ticketId,
           cajeroId,
           completado: false
         },
-        include: { ticket: true }
+        include: {ticket: true}
       });
 
       if (!llamado) {
@@ -136,22 +159,22 @@ export class TicketService {
 
       // Actualizar el ticket a estado "Atendido"
       const ticketCompletado = await this.prisma.ticket.update({
-        where: { id: ticketId },
-        data: { estado: EstadoTicket.Atrendido },
+        where: {id: ticketId},
+        data: {estado: EstadoTicket.Atendido},
       });
 
       // Marcar el llamado como completado
       await this.prisma.llamadoTicket.update({
-        where: { id: llamado.id },
-        data: { completado: true },
+        where: {id: llamado.id},
+        data: {completado: true},
       });
 
-      console.log(`✅ Ticket ${ticketCompletado.numero} completado por cajero ${cajeroId}`);
+      console.log(`Ticket ${ticketCompletado.numero} completado por cajero ${cajeroId}`);
 
       return ticketCompletado;
 
     } catch (error) {
-      console.error('❌ Error en completarTicket:', error);
+      console.error('Error en completarTicket:', error);
       throw new Error('No se pudo completar el ticket');
     }
   }
@@ -162,10 +185,10 @@ export class TicketService {
   async obtenerTodosLosTickets(): Promise<Ticket[]> {
     try {
       return await this.prisma.ticket.findMany({
-        orderBy: { createdAt: 'desc' },
+        orderBy: {createdAt: 'desc'},
       });
     } catch (error) {
-      console.error('❌ Error en obtenerTodosLosTickets:', error);
+      console.error('Error en obtenerTodosLosTickets:', error);
       throw new Error('No se pudieron obtener los tickets');
     }
   }
@@ -176,19 +199,19 @@ export class TicketService {
   async obtenerTicketsLlamadosRecientes(limite: number = 10): Promise<LlamadoTicket[]> {
     try {
       return await this.prisma.llamadoTicket.findMany({
-        where: { completado: false },
-        include: { ticket: true },
-        orderBy: { llamadoAt: 'desc' },
+        where: {completado: false},
+        include: {ticket: true},
+        orderBy: {llamadoAt: 'desc'},
         take: limite,
       });
     } catch (error) {
-      console.error('❌ Error en obtenerTicketsLlamadosRecientes:', error);
+      console.error('Error en obtenerTicketsLlamadosRecientes:', error);
       throw new Error('No se pudieron obtener los tickets llamados');
     }
   }
 
   /**
-   * Obtiene el estado actual del sistema para auditoría
+   * Obtiene el estado actual del sistema
    */
   async obtenerEstadoSistema(): Promise<any> {
     try {
@@ -200,9 +223,9 @@ export class TicketService {
         ultimosLlamados
       ] = await Promise.all([
         this.prisma.ticket.count(),
-        this.prisma.ticket.count({ where: { estado: EstadoTicket.EnEspera } }),
-        this.prisma.ticket.count({ where: { estado: EstadoTicket.Llamado } }),
-        this.prisma.ticket.count({ where: { estado: EstadoTicket.Atrendido } }),
+        this.prisma.ticket.count({where: {estado: EstadoTicket.EnEspera}}),
+        this.prisma.ticket.count({where: {estado: EstadoTicket.Llamado}}),
+        this.prisma.ticket.count({where: {estado: EstadoTicket.Atendido}}),
         this.obtenerTicketsLlamadosRecientes(5)
       ]);
 
@@ -213,14 +236,12 @@ export class TicketService {
         ticketsAtendidos,
         ultimosLlamados,
         timestamp: new Date().toISOString(),
-        // 📝 PUNTO DE AUDITORÍA (Detect): 
-        // Información del sistema expuesta - podría ser sensible en producción
         entorno: process.env.NODE_ENV,
         baseDeDatos: 'PostgreSQL'
       };
 
     } catch (error) {
-      console.error('❌ Error en obtenerEstadoSistema:', error);
+      console.error('Error en obtenerEstadoSistema:', error);
       throw new Error('No se pudo obtener el estado del sistema');
     }
   }
