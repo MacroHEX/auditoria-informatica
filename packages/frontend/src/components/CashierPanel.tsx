@@ -106,7 +106,7 @@ export function CashierPanel() {
     const colors = {
       [TicketStatus.EnEspera]: 'blue',
       [TicketStatus.Llamado]: 'orange',
-      [TicketStatus.Atrendido]: 'green',
+      [TicketStatus.Atendido]: 'green',
       [TicketStatus.Cancelado]: 'red',
     };
     return colors[status];

@@ -5,7 +5,7 @@ import type { SocketEvents } from '../types/ticket';
 // Configuración centralizada del socket
 // Nota: En producción, la URL debería venir de variables de entorno
 
-const SOCKET_URL = 'http://localhost:3000';
+const SOCKET_URL = 'http://10.10.10.33:3000';
 
 class SocketService {
   private socket: Socket | null = null;

@@ -80,7 +80,7 @@ export function DisplayPanel() {
   // Filtrar tickets por estado
   const waitingTickets = currentTickets.filter(t => t.estado === TicketStatus.EnEspera);
   const calledTickets = currentTickets.filter(t => t.estado === TicketStatus.Llamado);
-  const completedTickets = currentTickets.filter(t => t.estado === TicketStatus.Atrendido);
+  const completedTickets = currentTickets.filter(t => t.estado === TicketStatus.Atendido);
 
   const getTicketTypeColor = (tipo: TicketType) => {
     const colors = {
@@ -90,17 +90,6 @@ export function DisplayPanel() {
     };
     return colors[tipo];
   };
-
-  const getStatusColor = (status: TicketStatus) => {
-    const colors = {
-      [TicketStatus.EnEspera]: 'blue',
-      [TicketStatus.Llamado]: 'orange',
-      [TicketStatus.Atrendido]: 'green',
-      [TicketStatus.Cancelado]: 'red',
-    };
-    return colors[status];
-  };
-
   return (
     <Stack gap="lg">
       {/* Header */}
