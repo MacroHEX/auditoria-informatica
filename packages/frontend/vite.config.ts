@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import {defineConfig} from 'vite';
 import react from '@vitejs/plugin-react';
 
 // PUNTO DE AUDITORIA (Identify):
@@ -11,6 +11,10 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true, // Permite acceso desde otras dispositivos en la red
+    allowedHosts: [
+      'auditoria.codedbymartin.net', // Host principal del tunnel
+      '.codedbymartin.net' // Todos los subdominios
+    ],
     proxy: {
       // Configuración de proxy para desarrollo
       '/socket.io': {
