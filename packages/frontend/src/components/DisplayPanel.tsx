@@ -123,7 +123,7 @@ export function DisplayPanel() {
               </div>
 
               <div style={{textAlign: 'center'}}>
-                <Text fw={500}>Cajero</Text>
+                <Text fw={500}>Caja</Text>
                 <Text size="lg">{lastCalled.cajeroId}</Text>
               </div>
 
